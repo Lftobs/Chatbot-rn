@@ -4,6 +4,7 @@ export default function TabLayout() {
 
   return (
     <Stack
+      initialRouteName='test'
     >
       <Stack.Screen
         name="index"

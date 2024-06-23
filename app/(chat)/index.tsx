@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Image, ImageBackground, FlatList, TextInput } from 'react-native';
+import Animated, { FadeInRight, FadeInLeft } from 'react-native-reanimated';
 import { SvgXml } from 'react-native-svg';
 import {aiRes} from '@/lib/gemini'
+import { getanimation } from '@/utils/animation';
 
 type msgContent = {
     content: string,
@@ -27,8 +29,11 @@ const curlLeft = `<svg width="17" height="21" viewBox="0 0 17 21" fill="none" xm
 
 export default function HomeScreen() {
   const messageRef = useRef<TextInput | null>(null)
-  const [message, onChangeMessage] = useState('')
+  const [message, setMessage] = useState('')
   const [data, setData] = useState<Array<msgContent>> (initaldata)
+  const [show, setShow] = useState(false)
+  const [disable, setDisable] = useState(false)
+
   const getTime = (date: any) => {
     let hours = date.getHours();
     let minutes = date.getMinutes();
@@ -39,10 +44,6 @@ export default function HomeScreen() {
     let time = hours + ':' + minutes + ' ' + amOrPm;
     return time;
   }
-
-  useEffect( () => {
-    console.log(data)
-  }, [data])
 
   return (
     
@@ -56,25 +57,25 @@ export default function HomeScreen() {
             renderItem={({ item }) => {
               if (item.role === 'user') {
                 return (
-                  <View key={item.id} className={`relative bg-[#2377F1] self-end p-3 px-6 rounded-3xl mt-2 ${item.id === data.length && 'mb-3'}`}>
+                  <Animated.View entering={FadeInRight} key={item.id} className={`relative bg-[#2377F1] self-end p-3 px-6 rounded-3xl mt-2 ${item.id === data.length && 'mb-3'}`}>
                     <View className="flex-row gap-3">
                       <Text className="text-base max-w-[73%] text-white">{item.content}</Text>
                       <Text className="text-sm text-white self-end">{item.time ?? getTime(new Date) }</Text>
                     </View>
 
                     <SvgXml xml={curlRight} width={20} height={20} className="absolute bottom-0 right-0 z-50" />
-                  </View>
+                  </Animated.View>
                 )
               } else {
                 return (
-                  <View className={`relative bg-white p-3 pl-6 self-start rounded-3xl mt-2 ${item.id === data.length && 'mb-3'} `}>
+                  <Animated.View entering={FadeInLeft} className={`relative bg-white p-3 pl-6 self-start rounded-3xl mt-2 ${item.id === data.length && 'mb-3'} `}>
                     <View className="flex-row gap-3">
                       <Text className="text-base max-w-[73%] flex-row">{item.content}</Text>
                       <Text className="text-sm self-end">{item.time ?? getTime(new Date) }</Text>
                     </View>
 
                     <SvgXml xml={curlLeft} width={20} height={20} className="absolute bottom-0 left-[-.1rem] z-50" />
-                  </View>
+                  </Animated.View>
                 )
               }
 
@@ -88,24 +89,37 @@ export default function HomeScreen() {
           <TextInput
             ref={messageRef}
             placeholder='Message'
-            onChangeText={onChangeMessage}
+            value={message}
+            onChangeText={(text) => setMessage(text)}
             className="border-[#E3E4E6] border-2 h-10 bg-[#F0F1F3] w-3/5 rounded-2xl px-5"
           />
+          
           <Pressable 
             onPress={() => {
-              message && setData(prev => [...prev,  { content: message, time: getTime(new Date), role: 'user', id: data.length + 1 }])              
+              if (message) {
+                setDisable(true)
+                setData(prev => [...prev,  { content: message, time: getTime(new Date), role: 'user', id: data.length + 1 }])
+                setShow(true)
+                messageRef.current?.clear()
+                setMessage('') 
+              }
+                           
             }}
             onPressOut={ async () => {
               let msg = await aiRes(message) ?? 'Sorry, I did not get that. Can you please rephrase?'
               
               message && setData(prev => [...prev,  { content: msg, time: getTime(new Date), role: 'system', id: data.length + 2 }])
               
-              messageRef.current?.clear()
+              
+              message && setTimeout(() => {setShow(false), setDisable(false)}, 6000)
+              
             }}
-            className=' w-1/5 bg-[#2377F1] rounded-2xl h-10 items-center justify-center'
+            disabled={disable}
+            className={` w-1/5 rounded-2xl z-50 h-10 items-center justify-center ${disable ? 'bg-gray-400' : 'bg-[#2377F1]'}`}
           >
             <Text className='text-white font-semibold'>Send</Text>
           </Pressable>
+          { show && [...Array(3)].map((_, i) => <Animated.Image key={i} entering={getanimation(i)} source={require('../../assets/images/send.png')} className='w-8 h-8 absolute right-8' style={{objectFit: 'contain'}}/>)}
 
         </View>
       </ImageBackground>
